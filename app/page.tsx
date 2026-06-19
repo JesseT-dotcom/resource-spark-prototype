@@ -52,6 +52,7 @@ export default function Home() {
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   const effectiveTheme = customTheme.trim() || theme;
 
@@ -176,6 +177,71 @@ export default function Home() {
           outcomes, and instructions — so you can go straight into Canva.
         </p>
 
+        {/* Tips panel */}
+        <div
+          style={{
+            backgroundColor: "#EDE8DF",
+            borderRadius: "1rem",
+            marginBottom: "1.5rem",
+            overflow: "hidden",
+          }}
+        >
+          <button
+            onClick={() => setTipsOpen((o) => !o)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "1rem 1.25rem",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              textAlign: "left",
+              gap: "0.5rem",
+            }}
+          >
+            <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#3D3D3D" }}>
+              💡 What makes a resource pack sell well
+            </span>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "#3D3D3D",
+                opacity: 0.55,
+                flexShrink: 0,
+                transition: "transform 0.2s",
+                display: "inline-block",
+                transform: tipsOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            >
+              ▼
+            </span>
+          </button>
+
+          {tipsOpen && (
+            <div style={{ padding: "0 1.25rem 1.25rem" }}>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {[
+                  { bold: "Bundle, don’t single-sell.", text: "Buyers want value — a themed bundle (e.g. 3 related sub-themes like café + restaurant + supermarket) outsells a single small set at a higher price point." },
+                  { bold: "10–15 cards per theme is the sweet spot.", text: "Enough to feel substantial without being overwhelming to design or use." },
+                  { bold: "Low prep, high engagement wins.", text: "Resources that are “just laminate and play” get called out positively in reviews — avoid anything that needs lots of setup." },
+                  { bold: "Name the framework directly.", text: "If your resource supports EYLF outcomes, say so explicitly and confidently — don’t just hint at “learning outcomes.”" },
+                  { bold: "Cohesive, branded visuals beat generic AI-look images.", text: "A consistent illustration style across the whole pack signals quality more than any single great image." },
+                  { bold: "Clear “how it works” instructions reduce bad reviews.", text: "Buyer confusion about digital delivery (Canva links, printing, editing) is one of the most common sources of complaints — spell it out clearly." },
+                ].map((tip, i) => (
+                  <li key={i} style={{ display: "flex", gap: "0.625rem", fontSize: "0.875rem", color: "#3D3D3D", lineHeight: 1.55 }}>
+                    <span style={{ color: "#B5C9B7", flexShrink: 0, marginTop: "0.05em" }}>•</span>
+                    <span>
+                      <strong>{tip.bold}</strong>{" "}{tip.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
         {/* Form */}
         {!result && (
           <div className={card} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -203,17 +269,25 @@ export default function Home() {
             <div>
               <label
                 htmlFor="custom-theme"
-                style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#3D3D3D" }}
+                style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.25rem", color: "#3D3D3D" }}
               >
-                Or type your own theme
+                Or describe your own theme
               </label>
-              <input
+              <p style={{ fontSize: "0.8125rem", color: "#3D3D3D", opacity: 0.6, marginBottom: "0.5rem", lineHeight: 1.4 }}>
+                The more detail you give, the better your pack will be.
+              </p>
+              <textarea
                 id="custom-theme"
-                type="text"
                 value={customTheme}
                 onChange={(e) => setCustomTheme(e.target.value)}
-                placeholder="e.g. Vet Clinic, Fire Station, Beach Shop…"
-                style={inputStyle}
+                placeholder="e.g. Vet clinic dramatic play — checking up on stuffed animals, taking temperatures, giving pretend vaccinations"
+                rows={4}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                  lineHeight: 1.55,
+                  minHeight: "6rem",
+                }}
               />
             </div>
 
