@@ -1,65 +1,521 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+type Card = { label: string; description: string };
+type EylfOutcome = { outcome: string; explanation: string };
+type SupportingItem = { name: string; detail: string };
+type SupportingGroup = { type: string; items: SupportingItem[] };
+
+type GenerateResult = {
+  cards: Card[];
+  eylfOutcomes: EylfOutcome[];
+  howToUse: string;
+  supportingText: SupportingGroup[];
+};
+
+const PRESET_THEMES = [
+  "Café / Coffee Shop",
+  "Restaurant",
+  "Supermarket",
+  "Doctor's Office",
+  "Farm",
+  "Post Office",
+];
+
+const AGE_GROUPS = ["Toddler (1-2)", "Preschool (3-4)", "Kindergarten (5)"];
+
+const card =
+  "bg-white rounded-2xl p-6 shadow-sm border border-[#EDE8DF]";
+
+const inputStyle: React.CSSProperties = {
+  backgroundColor: "#FAF8F5",
+  border: "1.5px solid #B5C9B7",
+  color: "#3D3D3D",
+  borderRadius: "0.75rem",
+  padding: "0.75rem 1rem",
+  width: "100%",
+  fontSize: "1rem",
+  outline: "none",
+};
 
 export default function Home() {
+  const [theme, setTheme] = useState(PRESET_THEMES[0]);
+  const [customTheme, setCustomTheme] = useState("");
+  const [cardCount, setCardCount] = useState(12);
+  const [ageGroup, setAgeGroup] = useState(AGE_GROUPS[1]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<GenerateResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [rating, setRating] = useState<number | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const effectiveTheme = customTheme.trim() || theme;
+
+  const handleGenerate = async () => {
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+    setRating(null);
+    setFeedbackText("");
+    setFeedbackSubmitted(false);
+    setCopied(false);
+
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: effectiveTheme, cardCount, ageGroup }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Generation failed — please try again.");
+      }
+
+      setResult(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setResult(null);
+    setError(null);
+    setRating(null);
+    setFeedbackText("");
+    setFeedbackSubmitted(false);
+    setCopied(false);
+  };
+
+  const handleCopyAll = async () => {
+    if (!result) return;
+    const lines: string[] = [
+      `RESOURCE SPARK — ${effectiveTheme.toUpperCase()} (${ageGroup})`,
+      "=".repeat(52),
+      "",
+      `CARD LIST (${result.cards.length} cards)`,
+      "-".repeat(24),
+      ...result.cards.map((c, i) => `${i + 1}. ${c.label} — ${c.description}`),
+      "",
+      "EYLF OUTCOMES",
+      "-".repeat(24),
+      ...result.eylfOutcomes.flatMap((o) => [`• ${o.outcome}`, `  ${o.explanation}`, ""]),
+      "HOW TO USE THIS PACK",
+      "-".repeat(24),
+      result.howToUse,
+    ];
+
+    if (result.supportingText?.length) {
+      lines.push("", "SUPPORTING TEXT", "-".repeat(24));
+      result.supportingText.forEach((g) => {
+        lines.push(`${g.type}:`);
+        g.items.forEach((item) =>
+          lines.push(`  • ${item.name}${item.detail ? ` — ${item.detail}` : ""}`)
+        );
+        lines.push("");
+      });
+    }
+
+    await navigator.clipboard.writeText(lines.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFeedbackSubmit = () => {
+    console.log("Resource Spark feedback", {
+      rating,
+      theme: effectiveTheme,
+      ageGroup,
+      cardCount,
+      feedback: feedbackText,
+      timestamp: new Date().toISOString(),
+    });
+    setFeedbackSubmitted(true);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main style={{ minHeight: "100vh", backgroundColor: "#FAF8F5" }}>
+      {/* Header */}
+      <header
+        style={{ backgroundColor: "#B5C9B7", padding: "2.5rem 1.5rem", textAlign: "center" }}
+      >
+        <h1
+          style={{
+            fontSize: "1.875rem",
+            fontWeight: 700,
+            color: "#3D3D3D",
+            letterSpacing: "-0.02em",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Resource Spark
+        </h1>
+        <p style={{ fontSize: "1.125rem", color: "#3D3D3D", opacity: 0.85 }}>
+          Turn your idea into a ready-to-build resource pack in seconds
+        </p>
+      </header>
+
+      <div style={{ maxWidth: "680px", margin: "0 auto", padding: "3rem 1.5rem" }}>
+        {/* Explainer */}
+        <p
+          style={{
+            textAlign: "center",
+            color: "#3D3D3D",
+            opacity: 0.75,
+            marginBottom: "2.5rem",
+            lineHeight: 1.6,
+          }}
+        >
+          Pick a theme below, or type your own, and we&apos;ll generate the card list, learning
+          outcomes, and instructions — so you can go straight into Canva.
+        </p>
+
+        {/* Form */}
+        {!result && (
+          <div className={card} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            {/* Theme dropdown */}
+            <div>
+              <label
+                htmlFor="theme-select"
+                style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#3D3D3D" }}
+              >
+                Choose a theme
+              </label>
+              <select
+                id="theme-select"
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                style={inputStyle}
+              >
+                {PRESET_THEMES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Custom theme */}
+            <div>
+              <label
+                htmlFor="custom-theme"
+                style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#3D3D3D" }}
+              >
+                Or type your own theme
+              </label>
+              <input
+                id="custom-theme"
+                type="text"
+                value={customTheme}
+                onChange={(e) => setCustomTheme(e.target.value)}
+                placeholder="e.g. Vet Clinic, Fire Station, Beach Shop…"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* Age group + card count */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div>
+                <label
+                  htmlFor="age-group"
+                  style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#3D3D3D" }}
+                >
+                  Age group
+                </label>
+                <select
+                  id="age-group"
+                  value={ageGroup}
+                  onChange={(e) => setAgeGroup(e.target.value)}
+                  style={inputStyle}
+                >
+                  {AGE_GROUPS.map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="card-count"
+                  style={{ display: "block", fontSize: "0.875rem", fontWeight: 500, marginBottom: "0.5rem", color: "#3D3D3D" }}
+                >
+                  Cards per pack
+                </label>
+                <input
+                  id="card-count"
+                  type="number"
+                  value={cardCount}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v)) setCardCount(Math.min(20, Math.max(6, v)));
+                  }}
+                  min={6}
+                  max={20}
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+
+            {/* Generate button */}
+            <button
+              onClick={handleGenerate}
+              disabled={isLoading}
+              style={{
+                backgroundColor: "#D4A5A5",
+                color: "#3D3D3D",
+                border: "none",
+                borderRadius: "0.75rem",
+                padding: "1rem",
+                fontSize: "1rem",
+                fontWeight: 600,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.7 : 1,
+                transition: "opacity 0.15s, transform 0.1s",
+                width: "100%",
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {isLoading ? "Generating your resource pack…" : "Generate my resource pack"}
+            </button>
+
+            {error && (
+              <p style={{ textAlign: "center", fontSize: "0.875rem", color: "#c0392b" }}>{error}</p>
+            )}
+          </div>
+        )}
+
+        {/* Results */}
+        {result && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            {/* Header row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem" }}>
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3D3D" }}>
+                {effectiveTheme} — {ageGroup}
+              </h2>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button
+                  onClick={handleCopyAll}
+                  style={{
+                    backgroundColor: "#EDE8DF",
+                    color: "#3D3D3D",
+                    border: "none",
+                    borderRadius: "0.625rem",
+                    padding: "0.5rem 1rem",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  {copied ? "Copied!" : "Copy all"}
+                </button>
+                <button
+                  onClick={handleReset}
+                  style={{
+                    backgroundColor: "#B5C9B7",
+                    color: "#3D3D3D",
+                    border: "none",
+                    borderRadius: "0.625rem",
+                    padding: "0.5rem 1rem",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  Generate another
+                </button>
+              </div>
+            </div>
+
+            {/* Card list */}
+            <div className={card}>
+              <h3
+                style={{ fontSize: "1rem", fontWeight: 600, color: "#3D3D3D", marginBottom: "1rem" }}
+              >
+                Card List ({result.cards.length} cards)
+              </h3>
+              <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                {result.cards.map((c, i) => (
+                  <li
+                    key={i}
+                    style={{ display: "flex", gap: "0.75rem", fontSize: "0.9rem", color: "#3D3D3D", lineHeight: 1.5 }}
+                  >
+                    <span
+                      style={{ color: "#B5C9B7", fontWeight: 600, minWidth: "1.5rem", textAlign: "right", flexShrink: 0 }}
+                    >
+                      {i + 1}.
+                    </span>
+                    <span>
+                      <strong>{c.label}</strong>
+                      {" — "}
+                      <span style={{ opacity: 0.75 }}>{c.description}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* EYLF outcomes */}
+            <div className={card}>
+              <h3
+                style={{ fontSize: "1rem", fontWeight: 600, color: "#3D3D3D", marginBottom: "1rem" }}
+              >
+                EYLF Outcomes
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {result.eylfOutcomes.map((o, i) => (
+                  <div key={i}>
+                    <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "#3D3D3D", marginBottom: "0.25rem" }}>
+                      {o.outcome}
+                    </p>
+                    <p style={{ fontSize: "0.875rem", color: "#3D3D3D", opacity: 0.72, lineHeight: 1.55 }}>
+                      {o.explanation}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* How to use */}
+            <div
+              style={{
+                backgroundColor: "#EDE8DF",
+                borderRadius: "1rem",
+                padding: "1.5rem",
+              }}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              <h3
+                style={{ fontSize: "1rem", fontWeight: 600, color: "#3D3D3D", marginBottom: "0.75rem" }}
+              >
+                How to use this pack
+              </h3>
+              <p style={{ fontSize: "0.9rem", color: "#3D3D3D", lineHeight: 1.65 }}>
+                {result.howToUse}
+              </p>
+            </div>
+
+            {/* Supporting text */}
+            {result.supportingText?.length > 0 && (
+              <div className={card}>
+                <h3
+                  style={{ fontSize: "1rem", fontWeight: 600, color: "#3D3D3D", marginBottom: "1rem" }}
+                >
+                  Supporting Text Content
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                  {result.supportingText.map((group, i) => (
+                    <div key={i}>
+                      <p
+                        style={{ fontSize: "0.8rem", fontWeight: 700, color: "#B5C9B7", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}
+                      >
+                        {group.type}
+                      </p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                        {group.items.map((item, j) => (
+                          <div
+                            key={j}
+                            style={{ display: "flex", justifyContent: "space-between", fontSize: "0.9rem", color: "#3D3D3D", gap: "1rem" }}
+                          >
+                            <span>{item.name}</span>
+                            {item.detail && (
+                              <span style={{ opacity: 0.6, flexShrink: 0 }}>{item.detail}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            <div className={card}>
+              <h3
+                style={{ fontSize: "1rem", fontWeight: 600, color: "#3D3D3D", marginBottom: "1rem" }}
+              >
+                Was this useful?
+              </h3>
+
+              {feedbackSubmitted ? (
+                <p style={{ fontSize: "0.9rem", fontWeight: 500, color: "#B5C9B7" }}>
+                  Thanks for the feedback! It really helps.
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {/* Star rating */}
+                  <div style={{ display: "flex", gap: "0.375rem" }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setRating(star)}
+                        title={`${star} star${star !== 1 ? "s" : ""}`}
+                        style={{
+                          fontSize: "1.75rem",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: rating !== null && star <= rating ? "#D4A5A5" : "#ddd",
+                          transition: "color 0.1s, transform 0.1s",
+                          padding: "0 0.1rem",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ★
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Feedback text */}
+                  <div>
+                    <label
+                      htmlFor="feedback-text"
+                      style={{ display: "block", fontSize: "0.875rem", color: "#3D3D3D", marginBottom: "0.5rem", opacity: 0.8 }}
+                    >
+                      What would make this more useful? (optional)
+                    </label>
+                    <textarea
+                      id="feedback-text"
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackText(e.target.value)}
+                      placeholder="Your thoughts here…"
+                      rows={3}
+                      style={{
+                        ...inputStyle,
+                        resize: "none",
+                        lineHeight: 1.5,
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleFeedbackSubmit}
+                    disabled={rating === null}
+                    style={{
+                      backgroundColor: rating !== null ? "#D4A5A5" : "#EDE8DF",
+                      color: "#3D3D3D",
+                      border: "none",
+                      borderRadius: "0.625rem",
+                      padding: "0.625rem 1.25rem",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      cursor: rating !== null ? "pointer" : "not-allowed",
+                      opacity: rating === null ? 0.5 : 1,
+                      alignSelf: "flex-start",
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    Submit feedback
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
